@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>বাংলা অনুবাদক</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600&family=Noto+Serif+Bengali:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #0F5132;
+    --green-soft: #E6F0EA;
+    --red: #D0312D;
+    --ink: #1B2420;
+    --muted: #5E6B64;
+    --line: #D9E0DC;
+    --paper: #FAFBF9;
+    --white: #FFFFFF;
+    --ui: "Hind Siliguri", "Nirmala UI", "Segoe UI", sans-serif;
+    --bn: "Noto Serif Bengali", "Nirmala UI", serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: var(--ui);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+  }
+  button, select, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+
+  header { padding: 14px 14px 10px; border-bottom: 1px solid var(--line); background: var(--white); }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; color: var(--green); display: flex; align-items: center; gap: 8px; }
+  header h1::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
+
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 12px 14px 8px; }
+  .btn {
+    border: 1px solid var(--line); background: var(--white); border-radius: 6px;
+    padding: 8px 10px; cursor: pointer; font-weight: 500; line-height: 1.3;
+  }
+  .btn:hover { border-color: var(--green); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary { background: var(--green); border-color: var(--green); color: var(--white); }
+  .btn.primary:hover { background: #0B3F27; }
+  .btn.stop { grid-column: 1 / -1; border-color: var(--red); color: var(--red); display: none; }
+  .btn.small { padding: 5px 9px; font-size: 13px; }
+
+  details.settings { margin: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); }
+  details.settings summary { padding: 7px 10px; cursor: pointer; color: var(--muted); font-size: 13px; }
+  .settings-body { padding: 4px 10px 10px; display: grid; gap: 9px; font-size: 13px; }
+  .field { display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 8px; }
+  .field select, .field input[type=email] { width: 100%; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--white); }
+  .check { display: flex; align-items: center; gap: 8px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 0; }
+
+  .status { margin: 10px 14px 0; font-size: 13px; color: var(--muted); min-height: 20px; }
+  .status.error { color: var(--red); }
+  .status.ok { color: var(--green); }
+  .progress { height: 3px; margin: 4px 14px 0; background: var(--line); border-radius: 2px; overflow: hidden; visibility: hidden; }
+  .progress > span { display: block; height: 100%; width: 0; background: var(--green); transition: width .2s; }
+
+  .toolbar { display: none; flex-wrap: wrap; gap: 6px; padding: 10px 14px 6px; border-bottom: 1px solid var(--line); }
+  .toolbar .count { margin-left: auto; align-self: center; color: var(--muted); font-size: 12.5px; }
+
+  main { flex: 1; overflow-y: auto; padding: 8px 14px 18px; }
+  .empty { color: var(--muted); text-align: center; padding: 32px 10px; font-size: 13.5px; }
+  .empty strong { display: block; color: var(--ink); font-weight: 500; margin-bottom: 4px; font-size: 14.5px; }
+
+  .colhead { display: grid; gap: 10px; font-size: 12px; color: var(--muted); padding: 4px 0 6px; position: sticky; top: -8px; background: var(--paper); }
+  .rows { display: grid; gap: 0; }
+  .row { display: grid; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .layout-side .row, .layout-side .colhead { grid-template-columns: 1fr 1fr; }
+  .layout-stack .row, .layout-stack .colhead { grid-template-columns: 1fr; }
+  .layout-stack .colhead span:last-child { display: none; }
+  .en { font-size: 13px; color: var(--muted); word-wrap: break-word; }
+  .bn {
+    font-family: var(--bn); font-size: 15px; line-height: 1.75; color: var(--ink);
+    border-left: 3px solid var(--green); padding: 0 0 0 9px; word-wrap: break-word;
+    border-radius: 0; min-height: 1.75em;
+  }
+  .bn[contenteditable="true"]:hover { background: var(--green-soft); }
+  .bn[contenteditable="true"]:focus { background: var(--green-soft); outline: none; }
+  .bn.pending { color: var(--muted); font-family: var(--ui); font-size: 13px; border-left-color: var(--line); }
+  .bn.failed { color: var(--red); font-family: var(--ui); font-size: 13px; border-left-color: var(--red); }
+
+  @media (prefers-reduced-motion: reduce) { .progress > span { transition: none; } }
+</style>
+</head>
+<body>
+  <header>
+    <h1>বাংলা অনুবাদক</h1>
+    <p>ইংরেজি লেখা সিলেক্ট করুন, বাংলা পাশে দেখুন</p>
+  </header>
+
+  <div class="actions">
+    <button class="btn primary" id="btnSel">সিলেক্ট করা অংশ অনুবাদ</button>
+    <button class="btn" id="btnDoc">পুরো ডকুমেন্ট অনুবাদ</button>
+    <button class="btn stop" id="btnStop">থামান</button>
+  </div>
+
+  <details class="settings">
+    <summary>সেটিংস</summary>
+    <div class="settings-body">
+      <label class="field"><span>অনুবাদ ইঞ্জিন</span>
+        <select id="optEngine">
+          <option value="auto">স্বয়ংক্রিয় (Google, না হলে MyMemory)</option>
+          <option value="google">শুধু Google (ফ্রি)</option>
+          <option value="mymemory">শুধু MyMemory (ফ্রি)</option>
+        </select>
+      </label>
+      <label class="field"><span>দেখানোর ধরন</span>
+        <select id="optLayout">
+          <option value="side">পাশাপাশি</option>
+          <option value="stack">উপরে-নিচে</option>
+        </select>
+      </label>
+      <label class="field"><span>টেবিল বসবে</span>
+        <select id="optTablePos">
+          <option value="after">সিলেক্ট করা অংশের পরে</option>
+          <option value="end">ডকুমেন্টের শেষে</option>
+        </select>
+      </label>
+      <label class="field"><span>MyMemory ইমেইল</span>
+        <input type="email" id="optEmail" placeholder="ঐচ্ছিক — দৈনিক সীমা বাড়ে">
+      </label>
+      <label class="check"><input type="checkbox" id="optLive"> সিলেক্ট করলেই অনুবাদ (লাইভ মোড)</label>
+      <p class="hint">প্যানেলের বাম কিনারা টেনে চওড়া করলে পাশাপাশি দেখতে সুবিধা হবে। বাংলা লেখায় ক্লিক করে ভুল ঠিক করতে পারবেন — টেবিলে সংশোধিত লেখাই বসবে।</p>
+    </div>
+  </details>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+  <div class="progress" id="progress"><span></span></div>
+
+  <div class="toolbar" id="toolbar">
+    <button class="btn small primary" id="btnTable">ডকুমেন্টে টেবিল বসান</button>
+    <button class="btn small" id="btnCopy">বাংলা কপি করুন</button>
+    <button class="btn small" id="btnClear">মুছুন</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <main id="main">
+    <div class="empty" id="empty">
+      <strong>এখনো কিছু অনুবাদ হয়নি</strong>
+      Word-এ কিছু ইংরেজি লেখা সিলেক্ট করে উপরের সবুজ বাটনে চাপ দিন।
+    </div>
+    <div id="results"></div>
+  </main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- state ----------
+  var state = {
+    items: [],          // {en, bn, status: 'pending'|'done'|'failed'|'skip'}
+    busy: false,
+    cancel: false,
+    lastLiveText: ""
+  };
+  var settings = { engine: "auto", layout: "side", tablePos: "after", email: "", live: false };
+
+  var CACHE_KEY = "bnTr.cache.v1";
+  var SETTINGS_KEY = "bnTr.settings.v1";
+  var cache = {};
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---------- storage helpers ----------
+  function loadJSON(key, fallback) {
+    try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch (e) { return fallback; }
+  }
+  function saveJSON(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* storage full or blocked */ }
+  }
+  function cacheGet(text) { return Object.prototype.hasOwnProperty.call(cache, text) ? cache[text] : null; }
+  function cacheSet(text, bn) {
+    cache[text] = bn;
+    var keys = Object.keys(cache);
+    if (keys.length > 600) { for (var i = 0; i < keys.length - 500; i++) delete cache[keys[i]]; }
+    saveJSON(CACHE_KEY, cache);
+  }
+
+  // ---------- UI helpers ----------
+  function setStatus(msg, kind) {
+    var el = $("status");
+    el.textContent = msg || "";
+    el.className = "status" + (kind ? " " + kind : "");
+  }
+  function setProgress(done, total) {
+    var bar = $("progress");
+    if (!total) { bar.style.visibility = "hidden"; bar.firstElementChild.style.width = "0"; return; }
+    bar.style.visibility = "visible";
+    bar.firstElementChild.style.width = Math.round((done / total) * 100) + "%";
+  }
+  function setBusy(b) {
+    state.busy = b;
+    $("btnSel").disabled = b;
+    $("btnDoc").disabled = b;
+    $("btnTable").disabled = b;
+    $("btnStop").style.display = b ? "block" : "none";
+  }
+  function toBnDigits(n) {
+    var d = "০১২৩৪৫৬৭৮৯";
+    return String(n).replace(/[0-9]/g, function (c) { return d[+c]; });
+  }
+
+  function render() {
+    var res = $("results");
+    res.innerHTML = "";
+    var has = state.items.length > 0;
+    $("empty").style.display = has ? "none" : "block";
+    $("toolbar").style.display = has ? "flex" : "none";
+    if (!has) return;
+
+    res.className = settings.layout === "stack" ? "layout-stack" : "layout-side";
+
+    var head = document.createElement("div");
+    head.className = "colhead";
+    head.innerHTML = "<span>English</span><span>বাংলা</span>";
+    res.appendChild(head);
+
+    var rows = document.createElement("div");
+    rows.className = "rows";
+    state.items.forEach(function (item, idx) {
+      var row = document.createElement("div");
+      row.className = "row";
+
+      var en = document.createElement("div");
+      en.className = "en";
+      en.lang = "en";
+      en.textContent = item.en;
+
+      var bn = document.createElement("div");
+      bn.className = "bn";
+      bn.lang = "bn";
+      bn.dataset.idx = idx;
+      if (item.status === "pending") { bn.classList.add("pending"); bn.textContent = "অনুবাদ হচ্ছে…"; }
+      else if (item.status === "failed") { bn.classList.add("failed"); bn.textContent = "অনুবাদ হয়নি — আবার চেষ্টা করুন"; }
+      else {
+        bn.textContent = item.bn;
+        bn.contentEditable = "true";
+        bn.spellcheck = false;
+        bn.addEventListener("input", function () { state.items[idx].bn = bn.innerText.trim(); });
+      }
+      row.appendChild(en);
+      row.appendChild(bn);
+      rows.appendChild(row);
+    });
+    res.appendChild(rows);
+
+    var done = state.items.filter(function (i) { return i.status === "done" || i.status === "skip"; }).length;
+    $("count").textContent = toBnDigits(done) + "/" + toBnDigits(state.items.length) + " অনুচ্ছেদ";
+  }
+
+  function updateRow(idx) {
+    var item = state.items[idx];
+    var bn = document.querySelector('.bn[data-idx="' + idx + '"]');
+    if (!bn) { render(); return; }
+    bn.className = "bn";
+    bn.removeAttribute("contenteditable");
+    if (item.status === "failed") { bn.classList.add("failed"); bn.textContent = "অনুবাদ হয়নি — আবার চেষ্টা করুন"; }
+    else {
+      bn.textContent = item.bn;
+      bn.contentEditable = "true";
+      bn.spellcheck = false;
+      bn.oninput = function () { state.items[idx].bn = bn.innerText.trim(); };
+    }
+    var done = state.items.filter(function (i) { return i.status === "done" || i.status === "skip"; }).length;
+    $("count").textContent = toBnDigits(done) + "/" + toBnDigits(state.items.length) + " অনুচ্ছেদ";
+  }
+
+  // ---------- text helpers ----------
+  function clean(t) {
+    return String(t || "")
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u0007]/g, " ")
+      .replace(/[ \t\u00A0]+/g, " ")
+      .trim();
+  }
+  function splitParagraphs(text) {
+    return String(text || "").split(/[\r\n\u000B]+/).map(clean).filter(function (p) { return p.length > 0; });
+  }
+  function needsTranslation(t) {
+    var latin = (t.match(/[A-Za-z]/g) || []).length;
+    var bengali = (t.match(/[\u0980-\u09FF]/g) || []).length;
+    if (latin === 0) return false;              // numbers/symbols only, or already Bangla
+    return bengali / (latin + bengali) < 0.3;   // mostly English
+  }
+  function chunkText(text, limit) {
+    if (text.length <= limit) return [text];
+    var sentences = text.match(/[^.!?;]+[.!?;]+["'\u201D\u2019)\]]*\s*|[^.!?;]+$/g) || [text];
+    var chunks = [], cur = "";
+    sentences.forEach(function (s) {
+      if (s.length > limit) {                   // very long sentence: split on spaces
+        if (cur) { chunks.push(cur); cur = ""; }
+        var words = s.split(" "), part = "";
+        words.forEach(function (w) {
+          if ((part + " " + w).length > limit) { if (part) chunks.push(part); part = w; }
+          else part = part ? part + " " + w : w;
+        });
+        if (part) chunks.push(part);
+      } else if ((cur + s).length > limit) { chunks.push(cur); cur = s; }
+      else cur += s;
+    });
+    if (cur) chunks.push(cur);
+    return chunks.map(function (c) { return c.trim(); }).filter(Boolean);
+  }
+  function decodeEntities(s) {
+    var ta = document.createElement("textarea");
+    ta.innerHTML = s;
+    return ta.value;
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function fetchWithTimeout(url, ms) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error("সময় শেষ (timeout)")); }, ms);
+      fetch(url).then(function (r) { clearTimeout(timer); resolve(r); },
+                      function (e) { clearTimeout(timer); reject(e); });
+    });
+  }
+
+  // ---------- translation engines (free) ----------
+  var engines = {
+    google: {
+      limit: 1500,
+      translate: function (q) {
+        var url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=bn&dt=t&q=" + encodeURIComponent(q);
+        return fetchWithTimeout(url, 15000).then(function (r) {
+          if (!r.ok) throw new Error("Google " + r.status);
+          return r.json();
+        }).then(function (d) {
+          if (!d || !d[0]) throw new Error("Google: খালি উত্তর");
+          return d[0].map(function (s) { return s && s[0] ? s[0] : ""; }).join("");
+        });
+      }
+    },
+    mymemory: {
+      limit: 450,
+      translate: function (q) {
+        var url = "https://api.mymemory.translated.net/get?langpair=en%7Cbn&q=" + encodeURIComponent(q) +
+          (settings.email ? "&de=" + encodeURIComponent(settings.email) : "");
+        return fetchWithTimeout(url, 15000).then(function (r) {
+          if (!r.ok) throw new Error("MyMemory " + r.status);
+          return r.json();
+        }).then(function (d) {
+          var t = d && d.responseData && d.responseData.translatedText;
+          if (!t || Number(d.responseStatus) !== 200 || /MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(t)) {
+            throw new Error("MyMemory: " + (d && d.responseDetails ? d.responseDetails : "সীমা শেষ"));
+          }
+          return decodeEntities(t);
+        });
+      }
+    }
+  };
+
+  function engineOrder() {
+    if (settings.engine === "google") return ["google"];
+    if (settings.engine === "mymemory") return ["mymemory"];
+    return ["google", "mymemory"];
+  }
+
+  async function translateWith(name, text) {
+    var eng = engines[name];
+    var parts = chunkText(text, eng.limit);
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      if (state.cancel) throw new Error("cancelled");
+      out.push(await eng.translate(parts[i]));
+      if (parts.length > 1) await sleep(150);
+    }
+    return out.join(" ").replace(/\s+/g, " ").trim();
+  }
+
+  async function translate(text) {
+    var cached = cacheGet(text);
+    if (cached) return cached;
+    var order = engineOrder(), lastErr = null;
+    for (var i = 0; i < order.length; i++) {
+      for (var attempt = 0; attempt < 2; attempt++) {
+        try {
+          var bn = await translateWith(order[i], text);
+          if (bn) { cacheSet(text, bn); return bn; }
+        } catch (e) {
+          if (e.message === "cancelled") throw e;
+          lastErr = e;
+          await sleep(600 * (attempt + 1));
+        }
+      }
+    }
+    throw lastErr || new Error("অনুবাদ পাওয়া যায়নি");
+  }
+
+  // ---------- Word reading ----------
+  function readSelection() {
+    return Word.run(async function (ctx) {
+      var sel = ctx.document.getSelection();
+      sel.load("text");
+      await ctx.sync();
+      var paras = splitParagraphs(sel.text);
+      if (paras.length === 0) {                 // just a cursor: use the current paragraph
+        var cur = sel.paragraphs.getFirst();
+        cur.load("text");
+        await ctx.sync();
+        paras = splitParagraphs(cur.text);
+      }
+      return paras;
+    });
+  }
+  function readDocument() {
+    return Word.run(async function (ctx) {
+      var ps = ctx.document.body.paragraphs;
+      ps.load("items/text");
+      await ctx.sync();
+      var out = [];
+      ps.items.forEach(function (p) { splitParagraphs(p.text).forEach(function (t) { out.push(t); }); });
+      return out;
+    });
+  }
+
+  // ---------- main flow ----------
+  async function run(paragraphs, opts) {
+    opts = opts || {};
+    if (!paragraphs.length) { setStatus("কোনো লেখা পাওয়া যায়নি। Word-এ ইংরেজি লেখা সিলেক্ট করুন।", "error"); return; }
+
+    state.items = paragraphs.map(function (p) {
+      return { en: p, bn: needsTranslation(p) ? "" : p, status: needsTranslation(p) ? "pending" : "skip" };
+    });
+    render();
+
+    var todo = [];
+    state.items.forEach(function (it, i) { if (it.status === "pending") todo.push(i); });
+    if (!todo.length) { setStatus("এখানে অনুবাদের মতো ইংরেজি লেখা নেই।", "ok"); return; }
+
+    state.cancel = false;
+    setBusy(true);
+    setStatus(opts.live ? "লাইভ অনুবাদ হচ্ছে…" : "অনুবাদ হচ্ছে…");
+    var done = 0, failed = 0;
+    setProgress(0, todo.length);
+
+    for (var k = 0; k < todo.length; k++) {
+      if (state.cancel) break;
+      var idx = todo[k];
+      try {
+        state.items[idx].bn = await translate(state.items[idx].en);
+        state.items[idx].status = "done";
+      } catch (e) {
+        if (e.message === "cancelled") break;
+        state.items[idx].status = "failed";
+        failed++;
+        console.warn("Translate failed:", e);
+      }
+      done++;
+      updateRow(idx);
+      setProgress(done, todo.length);
+      if (!cacheGet(state.items[idx].en)) await sleep(120);   // be gentle with free services
+    }
+
+    setBusy(false);
+    setTimeout(function () { setProgress(0, 0); }, 600);
+
+    if (state.cancel) setStatus("থামানো হয়েছে। " + toBnDigits(done) + "টি অনুচ্ছেদ অনুবাদ হয়েছে।");
+    else if (failed) setStatus(toBnDigits(failed) + "টি অনুচ্ছেদ অনুবাদ হয়নি। ইন্টারনেট দেখে আবার চেষ্টা করুন, বা সেটিংসে ইঞ্জিন বদলান।", "error");
+    else setStatus("অনুবাদ শেষ। বাংলা লেখায় ক্লিক করে ঠিক করতে পারবেন।", "ok");
+  }
+
+  async function onTranslateSelection() {
+    try { await run(await readSelection()); }
+    catch (e) { setBusy(false); setStatus("সিলেকশন পড়া যায়নি: " + e.message, "error"); }
+  }
+  async function onTranslateDocument() {
+    try {
+      var paras = await readDocument();
+      await run(paras);
+    } catch (e) { setBusy(false); setStatus("ডকুমেন্ট পড়া যায়নি: " + e.message, "error"); }
+  }
+
+  // ---------- insert table into document ----------
+  async function onInsertTable() {
+    var rows = state.items.filter(function (i) { return i.status === "done" || i.status === "skip"; });
+    if (!rows.length) { setStatus("টেবিলে বসানোর মতো অনুবাদ নেই।", "error"); return; }
+
+    var values = [["English", "বাংলা"]].concat(rows.map(function (i) { return [i.en, i.bn]; }));
+    setBusy(true);
+    setStatus("টেবিল বসানো হচ্ছে…");
+    try {
+      await Word.run(async function (ctx) {
+        var table;
+        if (settings.tablePos === "end") {
+          table = ctx.document.body.insertTable(values.length, 2, "End", values);
+          await ctx.sync();
+        } else {
+          try {
+            var last = ctx.document.getSelection().paragraphs.getLast();
+            table = last.insertTable(values.length, 2, "After", values);
+            await ctx.sync();
+          } catch (inner) {                       // e.g. cursor inside another table
+            table = ctx.document.body.insertTable(values.length, 2, "End", values);
+            await ctx.sync();
+          }
+        }
+
+        try {
+          table.headerRowCount = 1;
+          table.styleBuiltIn = "GridTable4_Accent6";
+          await ctx.sync();
+        } catch (styleErr) { /* older Word builds: keep default style */ }
+
+        try {
+          for (var r = 1; r < values.length; r++) {
+            var c = table.getCell(r, 1);
+            c.body.font.name = "Nirmala UI";
+          }
+          table.getCell(0, 1).body.font.name = "Nirmala UI";
+          await ctx.sync();
+        } catch (fontErr) { /* font is optional */ }
+      });
+      setStatus("দুই কলামের টেবিল ডকুমেন্টে বসানো হয়েছে।", "ok");
+    } catch (e) {
+      setStatus("টেবিল বসানো যায়নি: " + e.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ---------- copy ----------
+  function onCopy() {
+    var text = state.items
+      .filter(function (i) { return i.status === "done" || i.status === "skip"; })
+      .map(function (i) { return i.bn; }).join("\n\n");
+    if (!text) { setStatus("কপি করার মতো অনুবাদ নেই।", "error"); return; }
+
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(ta);
+      setStatus(ok ? "বাংলা লেখা কপি হয়েছে।" : "কপি করা যায়নি। বাংলা লেখা নিজে সিলেক্ট করে Ctrl+C চাপুন।", ok ? "ok" : "error");
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { setStatus("বাংলা লেখা কপি হয়েছে।", "ok"); }, fallback);
+    } else fallback();
+  }
+
+  // ---------- live mode ----------
+  var liveTimer = null;
+  function onSelectionChanged() {
+    if (!settings.live) return;
+    clearTimeout(liveTimer);
+    liveTimer = setTimeout(async function () {
+      if (state.busy) return;
+      try {
+        var text = await Word.run(async function (ctx) {
+          var sel = ctx.document.getSelection();
+          sel.load("text");
+          await ctx.sync();
+          return sel.text;
+        });
+        var paras = splitParagraphs(text);
+        var joined = paras.join("\n");
+        if (!paras.length || joined === state.lastLiveText || joined.length > 4000) return;
+        state.lastLiveText = joined;
+        await run(paras, { live: true });
+      } catch (e) { /* ignore live errors */ }
+    }, 800);
+  }
+
+  // ---------- settings ----------
+  function applySettingsToUI() {
+    $("optEngine").value = settings.engine;
+    $("optLayout").value = settings.layout;
+    $("optTablePos").value = settings.tablePos;
+    $("optEmail").value = settings.email;
+    $("optLive").checked = settings.live;
+  }
+  function bindSettings() {
+    $("optEngine").addEventListener("change", function (e) { settings.engine = e.target.value; saveJSON(SETTINGS_KEY, settings); });
+    $("optLayout").addEventListener("change", function (e) { settings.layout = e.target.value; saveJSON(SETTINGS_KEY, settings); render(); });
+    $("optTablePos").addEventListener("change", function (e) { settings.tablePos = e.target.value; saveJSON(SETTINGS_KEY, settings); });
+    $("optEmail").addEventListener("change", function (e) { settings.email = e.target.value.trim(); saveJSON(SETTINGS_KEY, settings); });
+    $("optLive").addEventListener("change", function (e) {
+      settings.live = e.target.checked;
+      saveJSON(SETTINGS_KEY, settings);
+      setStatus(settings.live ? "লাইভ মোড চালু — লেখা সিলেক্ট করলেই অনুবাদ হবে।" : "লাইভ মোড বন্ধ।", "ok");
+    });
+  }
+
+  // ---------- start ----------
+  Office.onReady(function (info) {
+    cache = loadJSON(CACHE_KEY, {});
+    var saved = loadJSON(SETTINGS_KEY, null);
+    if (saved) for (var k in saved) if (Object.prototype.hasOwnProperty.call(settings, k)) settings[k] = saved[k];
+    applySettingsToUI();
+    bindSettings();
+
+    $("btnSel").addEventListener("click", onTranslateSelection);
+    $("btnDoc").addEventListener("click", onTranslateDocument);
+    $("btnStop").addEventListener("click", function () { state.cancel = true; setStatus("থামানো হচ্ছে…"); });
+    $("btnTable").addEventListener("click", onInsertTable);
+    $("btnCopy").addEventListener("click", onCopy);
+    $("btnClear").addEventListener("click", function () { state.items = []; state.lastLiveText = ""; render(); setStatus(""); });
+
+    if (info.host !== Office.HostType.Word) {
+      setStatus("এই অ্যাড-ইন শুধু Microsoft Word-এ চলে।", "error");
+      $("btnSel").disabled = true; $("btnDoc").disabled = true;
+      return;
+    }
+    if (!Office.context.requirements.isSetSupported("WordApi", "1.3")) {
+      setStatus("আপনার Word সংস্করণ পুরনো। Microsoft 365 বা Office 2021 দরকার।", "error");
+    }
+    Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged, onSelectionChanged);
+    render();
+  });
+})();
+</script>
+</body>
+</html>
